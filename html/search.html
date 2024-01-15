@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Roscoe: CSC 320 Search Engine in Python for AIT Database</title>
+
+    <!--   CSS Styling for the pagination feature-->
+    <!--   The flex CSS property ensures that generated <li> tags are side to side, not top to bottom -->
+    <style>
+        #pagination, #lastAndFirstPgButton {
+            display: flex;
+            list-style: none;
+            padding: 0;
+        }
+
+        #pagination li {
+            margin: 0 5px;
+            cursor: pointer;
+            color: blue;
+            border-style: solid;
+            border-width: thin;
+        }
+
+        #pagination li.active{
+            color: red;
+            font-weight: bold;
+        }
+
+        #lastAndFirstPgButton li {
+            margin: 0 5px;
+            cursor: pointer;
+            color: DimGrey;
+            border-style: groove;
+            border-width: thin;
+        }
+    </style>
+</head>
+<body style = "background-color: white">
+    <div id="query">
+    Query:
+    <form method="POST" enctype="multipart/form-data" action="search">
+        <textarea name="query" rows="5" cols="100" maxlength="5000"></textarea><br>
+        <p><strong>Enter # in <strong style="color:red;">LEFT</strong> textbox for a different Classification Algorithm for new search performance</strong></p>
+        <p style="color: DarkViolet;">0 (Default) -> Decision Tree Algorithm</p>
+        <p style="color: DarkViolet;">1 -> CLA Algorithm 1 (KNN Algorithm)</p>
+        <p style="color: DarkViolet;">2 -> CLA Algorithm 2 (Random Forest Algorithm)</p>
+
+        <div id = "important-message" style="border-style: dashed;">
+            <p style="color:blue;">NOTE:
+                If you want to choose a new classification algorithm, you need to enter <strong style="color:red;">9999</strong> in the
+                <strong>SECOND</strong> textbox below. Typing this value <strong>and</strong> hitting
+                the search button will delete the trained_mode_bow_dtree.pickle file,
+                re-fit the model with the new algorithm, and redo Cross-Validation.
+            <br>
+            <p>This will take some time. See PyCharm console for Cross Validation details.</p>
+            <p style="color:blue;">
+                Leaving the right textbox <strong>blank</strong> will not apply the new classification algorithm because it
+                will not delete the trained model of the previously selected algorithm. <strong>In other words,</strong>
+                you can leave the right textbox blank if you want to test different queries with the <strong>CURRENT</strong>
+                classifier algorithm.
+            </p>
+        </div>
+
+        <br>
+
+        <div id = "clf_choice">
+            <textarea name="cla_choice" rows="1" cols="5" maxlength="100"></textarea>
+            <textarea name="deletion_option" rows="1" cols="5" maxlength="100"></textarea>
+            <br>
+            <input type="submit" value="Apply CLA Algorithm and get search results" style="background-color:orange;"><br>
+        </div>
+
+        <p><strong>Select threshold value for showing X entries per page (will redirect back to first page)</strong></p>
+
+        <select id = "select_t">
+            <option value = "5" selected="selected">5</option>
+            <option value = "10">10</option>
+            <option value = "15">15</option>
+            <option value = "20">20</option>
+            <option value = "25">25</option>
+        </select>
+
+    </form>
+    </div>
+    <br>
+
+    <p><strong>PAGINATION FEATURE</strong></p>
+
+    <!-- List of buttons for pagination will be generated here-->
+    <ul id="pagination"></ul>
+
+    <!-- List of UL buttons for the first and last pages -->
+    <ul id = "lastAndFirstPgButton"></ul>
+
+    <div id="result">
+        <p>Result:</p>
+        <!-- This will be autofilled with <tr> and <td> eleemnts in web_server.py -->
+        <div id="result-list">
+        </div>
+    </div>
+
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // Retrieve all related HTML elements for processing here
+            const table = document.getElementById('td_demo');
+            const tableBody = table.querySelector('tbody');
+            const pagination = document.getElementById('pagination');
+            const lastFirstBtns = document.getElementById('lastAndFirstPgButton');
+            const selectElement = document.getElementById('select_t');
+
+
+            // Default value of the dropdown box (select_t)
+            var rowsPerPage =  parseInt(selectElement.value, 10);
+
+            function updateVariable(newValue){
+                rowsPerPage = newValue;
+            }
+
+            let currentPage = 1;
+
+            function showPage(page){
+                const start = (page -1) * rowsPerPage;
+                const end = start + rowsPerPage;
+
+                const rows = tableBody.querySelectorAll('tr');
+                rows.forEach((row,index) => {
+                    if(index >= start && index < end) {
+                        row.style.display = '';
+                    }
+                    else{
+                        row.style.display = 'none';
+                    }
+                });
+            }
+
+            function updatePagination() {
+                const totalRows = tableBody.querySelectorAll('tr').length;
+                const totalPages = Math.ceil(totalRows/ rowsPerPage);
+
+                pagination.innerHTML = '';
+
+                for(let i = 1; i <= totalPages; i++){
+                    const li = document.createElement('li');
+                    li.textContent = i;
+                    li.addEventListener('click', function () {
+                        currentPage = i;
+                        showPage(currentPage);
+                        updatePagination();
+                    });
+
+                    if(i === currentPage) {
+                        li.classList.add('active');
+                    }
+
+                    pagination.appendChild(li);
+                }
+            }
+
+
+            var totalRows2 = tableBody.querySelectorAll('tr').length;
+            var totalPages2 = Math.ceil(totalRows2 / rowsPerPage);
+
+            // Adding event listener when the threshold value is chosen
+            selectElement.addEventListener('change', function() {
+                rowsPerPage = parseInt(selectElement.value, 10);
+                totalPages2 = Math.ceil(totalRows2 / rowsPerPage);
+                currentPage = 1;
+                showPage(currentPage);
+                updatePagination();
+            });
+
+            // Load table page contents with default threshold value = 5
+            showPage(currentPage);
+            updatePagination();
+
+            // This section is for creating UL buttons for the first and last pages
+            const liFirst = document.createElement('li');
+            liFirst.textContent = "Jump to First Page";
+            liFirst.addEventListener('click', function () {
+                 showPage(1);
+                 updatePagination();
+            });
+
+            if(currentPage === 1) {
+                 liFirst.classList.add('active');
+            }
+
+            lastFirstBtns.appendChild(liFirst);
+
+            const liLast = document.createElement('li');
+            liLast.textContent = "Jump to Last Page";
+            liLast.addEventListener('click', function () {
+                 showPage(totalPages2);
+                 updatePagination();
+            });
+
+            if(currentPage === totalPages2) {
+                 liLast.classList.add('active');
+            }
+
+            lastFirstBtns.appendChild(liLast);
+
+        });
+
+    </script>
+
+
+
+
+
+
+</body>
+</html>
